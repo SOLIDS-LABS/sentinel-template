@@ -1,0 +1,111 @@
+{
+  "source": "the bench firmware",
+  "box": {
+    "w_cm": 60.0,
+    "h_cm": 40.0
+  },
+  "map": {
+    "lon_west": -145.0,
+    "lon_east": -95.0,
+    "lat_north": 78.0,
+    "lat_south": 45.0
+  },
+  "warning_x_cm": 16.0,
+  "target": {
+    "x_cm": 8.0,
+    "y_cm": 11.0,
+    "size_cm": 4.0
+  },
+  "sat_max_age_s": 50.0,
+  "laser": {
+    "x_cm": 24.0,
+    "y_cm": 31.0
+  },
+  "pir_height_cm": 35.0,
+  "sites": [
+    {
+      "site": "NWS",
+      "sensor": "SONAR",
+      "what": "HC-SR04 ultrasonic",
+      "x_cm": 48.0,
+      "y_cm": 11.0
+    },
+    {
+      "site": "AUR",
+      "sensor": "OBSTACLE",
+      "what": "IR obstacle sensor",
+      "x_cm": 8.0,
+      "y_cm": 7.0
+    },
+    {
+      "site": "AIS",
+      "sensor": "BEAM",
+      "what": "photoresistor, lit by the laser",
+      "x_cm": 24.0,
+      "y_cm": 38.0
+    },
+    {
+      "site": "SAT",
+      "sensor": "PIR",
+      "what": "HC-SR501 PIR, above the box",
+      "x_cm": 30.0,
+      "y_cm": 20.0
+    }
+  ],
+  "pins": [
+    {
+      "signal": "SONAR_TRIG",
+      "gpio": 2,
+      "pin": 4,
+      "row": "row 4, left",
+      "rail": "5V",
+      "safe": "an output: the Pico drives it",
+      "what": "HC-SR04 TRIG (NWS)"
+    },
+    {
+      "signal": "SONAR_ECHO",
+      "gpio": 3,
+      "pin": 5,
+      "row": "row 5, left",
+      "rail": "5V",
+      "safe": "the divider: 5 V x 2/3 = 3.33 V",
+      "what": "HC-SR04 ECHO through the divider (NWS)"
+    },
+    {
+      "signal": "PIR_OUT",
+      "gpio": 5,
+      "pin": 7,
+      "row": "row 7, left",
+      "rail": "5V",
+      "safe": "3.3 V by design, measured first",
+      "what": "HC-SR501 OUT (SAT)"
+    },
+    {
+      "signal": "OBSTACLE_OUT",
+      "gpio": 21,
+      "pin": 27,
+      "row": "row 14, right",
+      "rail": "3V3",
+      "safe": "the sensor runs on 3.3 V",
+      "what": "IR obstacle OUT, low when near (AUR)"
+    },
+    {
+      "signal": "BEAM_DO",
+      "gpio": 17,
+      "pin": 22,
+      "row": "row 19, right",
+      "rail": "3V3",
+      "safe": "the sensor runs on 3.3 V",
+      "what": "photoresistor DO (AIS)"
+    },
+    {
+      "signal": "BEAM_AO",
+      "gpio": 26,
+      "pin": 31,
+      "row": "row 10, right",
+      "rail": "3V3",
+      "safe": "the sensor runs on 3.3 V",
+      "what": "photoresistor AO on ADC0 (AIS)"
+    }
+  ]
+}

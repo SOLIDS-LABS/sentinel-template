@@ -1,0 +1,17 @@
+# what make builds
+/build/
+*.o
+# except the given acceptance test, which make accept1 links with your library
+!/tools/bin/*/accept_lab1.o
+*.a
+*.d
+
+# the link that make watch makes to your run directory
+/web/live
+
+# crash and debugger files
+core
+vgcore.*
+
+# editor settings
+.vscode/
