@@ -10,7 +10,8 @@
 #   make bench-health  the TA's bench board, for the Bench view: BENCH=tcp:<address>:4760
 #   make clean         remove build/
 #
-# Each lab Makefile gets CC, CFLAGS and BUILD from here: see src/libsyscall/README.md.
+# Each lab Makefile gets CC, CFLAGS and BUILD from here: see Section 7.7 of
+# docs/lab1/lab1_manual.pdf.
 
 CC      := gcc
 CFLAGS  := -std=c11 -D_GNU_SOURCE -Wall -Wextra -Werror -g -O1
@@ -96,7 +97,8 @@ test: all
 # log is removed first, because a new run adds its lines to the end of the file.
 lab1: programs $(filter src/libsyscall,$(READY))
 	@if [ ! -x "$(BUILD)/demo_lab1" ]; then \
-		echo "build/demo_lab1 does not exist. Lab 1 builds it: see src/libsyscall/README.md"; \
+		echo "build/demo_lab1 does not exist. Your src/libsyscall/Makefile builds it."; \
+		echo "See Section 7.7 of docs/lab1/lab1_manual.pdf."; \
 		exit 1; \
 	fi
 	@mkdir -p "$(LIVE)"
@@ -114,7 +116,8 @@ lab1: programs $(filter src/libsyscall,$(READY))
 # check runs in its own process: a crash in one check does not stop the rest.
 accept1: programs $(filter src/libsyscall,$(READY))
 	@if [ ! -f "$(BUILD)/libsyscall.a" ]; then \
-		echo "build/libsyscall.a does not exist. Lab 1 builds it: see src/libsyscall/README.md"; \
+		echo "build/libsyscall.a does not exist. Your src/libsyscall/Makefile builds it."; \
+		echo "See Section 7.7 of docs/lab1/lab1_manual.pdf."; \
 		exit 1; \
 	fi
 	$(CC) -o $(BUILD)/accept_lab1 tools/bin/$(ARCH)/accept_lab1.o \
@@ -222,7 +225,7 @@ submit:
 	@for f in demo_output.txt missions.log proc_capture.txt; do \
 		if [ ! -s "docs/lab1/$$f" ]; then \
 			echo "docs/lab1/$$f is missing or empty."; \
-			echo "Section 9 of src/libsyscall/README.md gives the commands that make it."; \
+			echo "Section 9 of docs/lab1/lab1_manual.pdf gives the commands that make it."; \
 			exit 1; \
 		fi; \
 	done
