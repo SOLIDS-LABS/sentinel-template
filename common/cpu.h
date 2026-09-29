@@ -26,8 +26,6 @@
  *
  *   3. Threads inherit it from the thread that created them. Pinning the main
  *      thread before any thread is created is enough to pin all of them.
- *
- * drills/04a_affinity.c shows all three with sched_setaffinity directly.
  */
 
 #ifndef SENTINEL_CPU_H

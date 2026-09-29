@@ -26,11 +26,13 @@ filling them is the lab.
 | `src/log.c` | `log_open` `log_writef` `log_close` `log_level_name` |
 | `src/proc.c` | `proc_report` `proc_report_write` |
 | `tests/test_*.c` | one test program for each source file |
-| `tests/demo_lab1.c` | the demonstration program |
+| `tests/demo_lab1.c` | the demonstration program. Section 7.6 of the manual is its complete specification: its arguments, its steps, and every line it writes |
 
 Fifteen functions. `include/sentinel/syscall.h` declares all of them and states the contract
 of each one. **It is given. Do not change a declaration in it**, because tests that are not in
 this repository call your functions exactly as it declares them.
+
+Section 7.5 of the manual states the rules that apply to all four source files.
 
 ## What you are given
 
@@ -44,7 +46,7 @@ this repository call your functions exactly as it declares them.
 | `../../build/contactfeed` | the feed generator, which `make` copies into `build/` |
 
 Read `../../common/linereader.c` before you write the `--follow` loop in your demo. The reader
-is given, but your demo is its caller, and the caller is the difficult part. Section 6.5 of
+is given, but your demo is its caller, and the caller is the difficult part. Section 7.6 of
 the manual explains it.
 
 ## Commands
@@ -73,7 +75,8 @@ make clean    # remove build/
 - [ ] `make` builds your library and your demo with no warning.
 - [ ] `make test` passes.
 - [ ] `make accept1` passes all 34 checks.
-- [ ] `make lab1` and `make lab1 PROFILE=dirty` both complete.
+- [ ] `make lab1` and `make lab1 PROFILE=dirty` both complete, and the second reports a
+      `rejected` count above zero.
 - [ ] The demo prints `(balanced)`.
 - [ ] `--follow` ends because the feed went quiet, and not because the reader reported
       `EAGAIN`.
