@@ -22,14 +22,17 @@
 int sc_open_read(const char *path);
 
 /* Open path for writing. Create the file if it does not exist, with the
- * permission bits 0644.
+ * permission bits 0644. The umask of the process masks them, as it does for
+ * open(): with umask 027 the file gets 0640. Do not change the mode after the
+ * file opens.
  *   append != 0   every write goes to the end of the file, also when other
  *                 processes write the same file at the same time.
  *   append == 0   the existing content is removed when the file opens.
  */
 int sc_open_write(const char *path, int append);
 
-/* The same as sc_open_write, but a new file gets the permission bits in mode. */
+/* The same as sc_open_write, but a new file gets the permission bits in mode,
+ * masked by the umask in the same way. */
 int sc_open_write_mode(const char *path, int append, mode_t mode);
 
 /* Close fd. Returns 0. */
