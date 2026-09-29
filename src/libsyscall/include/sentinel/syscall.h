@@ -19,6 +19,10 @@
 /* ------------------------------------------------------------------ io.c */
 
 /* Open path for reading. Returns a file descriptor. */
+/* Errors:
+ * open() is retried after EINTR. Any other failure gives -1 with the errno
+ * of open(), such as ENOENT or EACCES.
+ */
 int sc_open_read(const char *path);
 
 /* Open path for writing. Create the file if it does not exist, with the
@@ -29,23 +33,47 @@ int sc_open_read(const char *path);
  *                 processes write the same file at the same time.
  *   append == 0   the existing content is removed when the file opens.
  */
+/* Errors:
+ * open() is retried after EINTR. Any other failure gives -1 with the errno
+ * of open().
+ */
 int sc_open_write(const char *path, int append);
 
 /* The same as sc_open_write, but a new file gets the permission bits in mode,
  * masked by the umask in the same way. */
+/* Errors:
+ * open() is retried after EINTR. Any other failure gives -1 with the errno
+ * of open().
+ */
 int sc_open_write_mode(const char *path, int append, mode_t mode);
 
 /* Close fd. Returns 0. */
+/* Errors:
+ * EINTR is not a failure: Linux has released fd already, so the function
+ * returns 0. Any other failure gives -1 with the errno of close(), such as
+ * EBADF.
+ */
 int sc_close(int fd);
 
 /* Write all n bytes of buf to fd. Returns 0 only when every byte is written.
  * n == 0 writes nothing and returns 0, whatever fd is.
+ */
+/* Errors:
+ * write() is called again after EINTR and after a partial write. write()
+ * returning 0 for a non-zero count gives -1 with EIO, because a loop that
+ * went on would never end. Any other failure gives -1 with the errno of
+ * write(). Bytes written before a failure stay written.
  */
 int sc_write_all(int fd, const void *buf, size_t n);
 
 /* Read from fd into buf until n bytes arrive or the input ends.
  * Returns the number of bytes read: n, or fewer only at the end of the input.
  * n == 0 reads nothing and returns 0, whatever fd is.
+ */
+/* Errors:
+ * read() is called again after EINTR. Any other failure gives -1 with the
+ * errno of read(), also when some bytes arrived first: they are in buf, but
+ * not counted.
  */
 ssize_t sc_read_full(int fd, void *buf, size_t n);
 
@@ -57,16 +85,26 @@ ssize_t sc_read_full(int fd, void *buf, size_t n);
 /* Nanoseconds from a clock that never goes backwards. The count starts at an
  * arbitrary point, so the value is not a date. Use it to measure durations.
  */
+/* Errors:
+ * It cannot fail.
+ */
 int64_t sc_now_ns(void);
 
 /* The current date and time: seconds since the epoch, and microseconds from
  * 0 to 999999. A NULL pointer is allowed, and nothing is written to it.
+ */
+/* Errors:
+ * It cannot fail.
  */
 void sc_now_wall(int64_t *sec, int32_t *usec);
 
 /* Write the current date and time into buf as "<seconds>.<microseconds>",
  * with exactly 6 digits after the point: "1755534061.000042".
  * Returns the length written, or -1 if buflen is too small.
+ */
+/* Errors:
+ * buf == NULL gives -1 with EINVAL. A buffer that is too small gives -1 with
+ * ERANGE. On a failure, buf is not changed.
  */
 int sc_stamp(char *buf, size_t buflen);
 
@@ -92,6 +130,10 @@ typedef struct log log_t;   /* opaque: you define struct log in log.c */
  * when the file existed before with other permissions.
  * Returns NULL on failure.
  */
+/* Errors:
+ * path == NULL gives NULL with EINVAL. Any other failure gives NULL with the
+ * errno of the call that failed.
+ */
 log_t *log_open(const char *path);
 
 /* Write one line to the log, with a message formatted like printf:
@@ -106,14 +148,27 @@ log_t *log_open(const char *path);
  * A line never mixes with a line from another writer, and no line is lost.
  * Returns 0. lg == NULL or an unknown level gives -1 with errno EINVAL.
  */
+/* Errors:
+ * lg == NULL, fmt == NULL or an unknown level gives -1 with EINVAL, and
+ * writes nothing. A failed write gives -1 with the errno of write(). Each
+ * '\n' inside the message becomes a space, so one call always writes one
+ * line.
+ */
 int log_writef(log_t *lg, log_level_t level, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
 /* Close the log and free the handle. lg == NULL is allowed and returns 0. */
+/* Errors:
+ * lg == NULL returns 0. A failed close gives -1 with the errno of close().
+ * The handle is freed in both cases, so do not use it again.
+ */
 int log_close(log_t *lg);
 
 /* The name of a level, for example "ALERT", or NULL if level is not a
  * log_level_t value. */
+/* Errors:
+ * A value that is not a log_level_t gives NULL. errno does not change.
+ */
 const char *log_level_name(log_level_t level);
 
 /* ---------------------------------------------------------------- proc.c */
@@ -147,6 +202,12 @@ typedef struct {
  * opens to do its work.
  * out == NULL gives -1 with errno EINVAL. A pid with no process gives -1.
  */
+/* Errors:
+ * out == NULL gives EINVAL. A pid with no process gives ENOENT. A process of
+ * another user gives EACCES, because its fd directory cannot be read. A
+ * field that /proc does not list, such as VmSize for a kernel thread, is 0.
+ * On a failure, the content of out is not defined.
+ */
 int proc_report(pid_t pid, proc_info_t *out);
 
 /* Write info to fd as text, in exactly this layout (%d, %s and %ld as in
@@ -164,6 +225,10 @@ int proc_report(pid_t pid, proc_info_t *out);
  *       ctxt_invol %ld
  *
  * info == NULL gives -1 with errno EINVAL.
+ */
+/* Errors:
+ * info == NULL gives EINVAL. A failed write gives -1 with the errno of
+ * write().
  */
 int proc_report_write(int fd, const proc_info_t *info);
 
