@@ -65,23 +65,12 @@ make clean    # remove build/
 
 ## Build rules
 
-- Compile with `-Iinclude -I../../common`.
-- Link with `$(BUILD)/libsyscall.a $(BUILD)/libcommon.a -lm`, in that order.
-- Take `CC`, `CFLAGS` and `BUILD` from the top-level `Makefile`, each with `?=`.
-- A warning stops the build. Do not remove `-Werror`.
+Section 7.7 of the manual states what your `Makefile` must do, the flags, and the link order.
 
 ## Done when
 
-- [ ] `make` builds your library and your demo with no warning.
-- [ ] `make test` passes.
-- [ ] `make accept1` passes all 34 checks.
-- [ ] `make lab1` and `make lab1 PROFILE=dirty` both complete, and the second reports a
-      `rejected` count above zero.
-- [ ] The demo prints `(balanced)`.
-- [ ] `--follow` ends because the feed went quiet, and not because the reader reported
-      `EAGAIN`.
-- [ ] `valgrind --leak-check=full --error-exitcode=1 build/demo_lab1 build/live/feed.txt /tmp/check.log`
-      reports no leak and no error.
+Section 7.11 of the manual is the list. It is stated there only, so that it cannot disagree
+with itself.
 
 ## What you hand in
 

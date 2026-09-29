@@ -230,7 +230,7 @@ merge a binary. Take the course's copy in the same way.
 ```sh
 make          # build the given code and each lab in src/ that has a Makefile, and copy the given programs
 make test     # run the tests of each lab that has a Makefile
-make accept1  # check your Lab 1 against its contract: see src/libsyscall/README.md
+make accept1  # check your Lab 1 against its contract: Section 7.10 of docs/lab1/lab1_manual.pdf
 make submit   # build, test, and write the zip file you upload to Brightspace
 make clean    # remove build/
 ```
@@ -313,15 +313,17 @@ and 3 when no heartbeat arrives for 3 seconds, because the board is gone.
 
 ## The contact record: `common/contact.h`
 
-| Name | What it does |
+The header states the contract of each name in its comments. Read it there; this list only
+says what each one is for.
+
+| Name | What it is for |
 |---|---|
-| `contact_t` | one report: `t_sec`, `t_usec`, `sensor`, `id`, `lat`, `lon`, `speed`, `flag` |
-| `contact_parse(line, len, &c)` | parses one line, with or without its `\n`. Returns `CONTACT_OK`, or the error that it found. It changes `c` only when it returns `CONTACT_OK` |
-| `contact_strerror(e)` | the text for an error. It never returns `NULL` |
-| `contact_format(&c, buf, buflen)` | writes a report as one line with its `\n`. Returns the length, or -1 |
-| `sensor_name(id)` | `"NWS"` for `SENSOR_NWS`, or `NULL` for an unknown id |
-| `sensor_rate(id)` | the rate of the sensor, or the burst size for `SAT`. -1 for an unknown id |
-| `CONTACT_LINE_MAX` | 128: the maximum length of a line, including its `\n` |
+| `contact_t` | one report |
+| `contact_parse` | turns one line into a `contact_t` |
+| `contact_strerror` | the text for the reason a line was refused |
+| `contact_format` | writes a `contact_t` as one line |
+| `sensor_name`, `sensor_rate` | the name and the rate of a sensor |
+| `CONTACT_LINE_MAX` | the maximum length of a line |
 
 ---
 
