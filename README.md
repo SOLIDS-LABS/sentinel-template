@@ -47,8 +47,9 @@ before you start. This file describes the repository the labs are built in.
 In Lab 4, [`src/sentinel`](src/sentinel/README.md) also starts all four layers with one
 command.
 
-The README in each lab directory holds the deliverable of that lab. It is released before the
-lab.
+Each lab has a Lab Manual in `docs/<lab>/`, released before the lab. The manual is the lab
+document: what to build, how it is marked, and how to hand it in. The README in each lab
+directory is a short quick reference that points at the manual.
 
 ---
 
@@ -160,7 +161,7 @@ with Apple silicon runs aarch64 Linux, and most PCs and WSL2 run x86_64 Linux. `
 tells you which one you have. Install the tools:
 
 ```sh
-sudo apt install build-essential python3 valgrind git
+sudo apt install build-essential python3 valgrind git zip
 ```
 
 ---
@@ -207,7 +208,8 @@ to the given code. Do this before you start each lab, and again if the course an
 
 | Files | Who changes them |
 |---|---|
-| `src/<lab>/src`, `src/<lab>/include`, `src/<lab>/tests` | you |
+| `src/<lab>/src`, `src/<lab>/tests`, `src/<lab>/Makefile` | you |
+| `src/<lab>/include` | the course. Do not change a declaration in it |
 | `docs/` | you |
 | `common/`, `tools/`, `web/`, the top `Makefile`, every `README.md` | the course |
 
@@ -266,14 +268,15 @@ build/contactfeed --sensor NWS --burst 500 > feed.txt # a feed file
 | `--count N` | stop after N reports |
 | `--priority-every K` | every Kth report has the flag `P`. The default is 10 |
 | `--seed S` | the same seed gives the same contacts |
-| `--profile NAME` | `ideal`, `dirty`, `field` or `threat`. See the next table |
+| `--profile NAME` | `world`, `ideal`, `dirty`, `field` or `threat`. See the next table |
 | `--damage-every N` | with `dirty`, every Nth line is damaged. The default is 50 |
 
 With no `--rate` and no `--burst`, the sensor uses its rate from the table of sensors.
 
 | Profile | The feed |
 |---|---|
-| `ideal` | The default. Positions are random inside the area of the sensor. Every line is valid |
+| `world` | One sky seen by all four sensors. Where their coverage overlaps, two sensors report the same object from slightly different positions. `make lab1` uses this profile unless you give `PROFILE=` |
+| `ideal` | The default of `contactfeed` when you run it with no `--profile`. Positions are random inside the area of the sensor. Every line is valid |
 | `dirty` | The same, but some lines are damaged: cut short, too long, with a bad number, or empty |
 | `field` | Contacts that move: the next report about a contact is where the contact has moved to |
 | `threat` | `field`, flown by traffic that filed a flight plan, plus a few contacts that filed nothing. The feed never says which is which: a line from one of them is an ordinary line. Your centre decides, against `common/traffic.txt` |
@@ -330,8 +333,7 @@ says what each one is for.
 ## The page
 
 The page shows the operations centre from the files that your programs write. It only reads
-files, and it changes nothing. Section 5 of the lab document says that a display is not a
-course requirement.
+files, and it changes nothing. No mark depends on it.
 
 ```sh
 make lab1     # run your Lab 1 demo on a new feed
@@ -355,8 +357,8 @@ bench) in another terminal. When you work over SSH,
   fix. It is not marked. It is the fastest way to answer a question about your own code.
 - At each check, you say what a command will print before you run it. You also say what one
   changed line of your own code will do.
-- You hand in a zip file on Brightspace. `make submit` builds it. The README of each lab gives
-  the steps.
+- You hand in a zip file on Brightspace. `make submit` builds it. The Lab Manual of each lab
+  gives the steps.
 
 ---
 

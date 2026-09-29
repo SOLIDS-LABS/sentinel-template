@@ -100,7 +100,8 @@ void sc_now_wall(int64_t *sec, int32_t *usec);
 
 /* Write the current date and time into buf as "<seconds>.<microseconds>",
  * with exactly 6 digits after the point: "1755534061.000042".
- * Returns the length written, or -1 if buflen is too small.
+ * Returns the length of the stamp, not counting the '\0', or -1 if buflen is
+ * too small. buflen must hold the stamp and its '\0': SC_STAMP_MAX is enough.
  */
 /* Errors:
  * buf == NULL gives -1 with EINVAL. A buffer that is too small gives -1 with
@@ -145,7 +146,8 @@ log_t *log_open(const char *path);
  * field of 8 characters, and one space follows the field.
  * A line is at most 512 bytes, including its '\n'. A longer message is cut,
  * and the line still ends with '\n'.
- * A line never mixes with a line from another writer, and no line is lost.
+ * A line never mixes with a line from another writer, and no line is lost:
+ * the whole line leaves in one write() call, on a log opened with O_APPEND.
  * Returns 0. lg == NULL or an unknown level gives -1 with errno EINVAL.
  */
 /* Errors:
@@ -198,8 +200,8 @@ typedef struct {
 
 /* Fill out for process pid. pid 0 means the calling process.
  * open_fds is the number of descriptors that the process holds. For the
- * calling process, it does not count a descriptor that proc_report itself
- * opens to do its work.
+ * calling process (pid 0, or its own pid), it does not count a descriptor
+ * that proc_report itself opens to do its work.
  * out == NULL gives -1 with errno EINVAL. A pid with no process gives -1.
  */
 /* Errors:
