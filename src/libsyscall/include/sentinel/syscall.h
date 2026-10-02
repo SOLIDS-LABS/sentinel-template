@@ -143,10 +143,11 @@ typedef struct log log_t;
  * when the file existed before with other permissions.
  */
 /* Errors:
- * path == NULL gives NULL with EINVAL. When the mode of an existing file
- * cannot be set to 0600, the log is closed, and the result is NULL with the
- * errno of fchmod(), such as EPERM. Any other failure gives NULL with the
- * errno of the call that failed.
+ * path == NULL gives NULL with EINVAL. open() is retried after EINTR, as in
+ * sc_open_write. When the mode of an existing file cannot be set to 0600,
+ * the log is closed, and the result is NULL with the errno of fchmod(), such
+ * as EPERM. Any other failure gives NULL with the errno of the call that
+ * failed.
  */
 log_t *log_open(const char *path);
 
@@ -169,16 +170,17 @@ log_t *log_open(const char *path);
  * lg == NULL, fmt == NULL or an unknown level gives -1 with EINVAL, and
  * writes nothing. A format that vsnprintf() cannot convert gives -1 with
  * EOVERFLOW, and writes nothing. A failed write gives -1 with the errno of
- * write(). Each '\n' inside the message becomes a space, so one call always
- * writes one line.
+ * write(). Each '\n' in the message becomes a space, also a '\n' at its end,
+ * so one call always writes one line.
  */
 int log_writef(log_t *lg, log_level_t level, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
 /* Close the log and free the handle. Returns 0. */
 /* Errors:
- * lg == NULL returns 0. A failed close gives -1 with the errno of close().
- * The handle is freed in both cases, so do not use it again.
+ * lg == NULL returns 0. EINTR from close() is not a failure, as in sc_close.
+ * Any other failed close gives -1 with the errno of close().
+ * The handle is freed in all cases, so do not use it again.
  */
 int log_close(log_t *lg);
 
