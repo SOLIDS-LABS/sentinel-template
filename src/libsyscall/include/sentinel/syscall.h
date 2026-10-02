@@ -4,9 +4,11 @@
  * tests that mark your lab, call these functions exactly as declared here.
  * You write every function in src/.
  *
- * Each comment says what a function must do, not how to do it. When a
- * function fails, it returns -1 (or NULL) and sets errno, unless its comment
- * says something else.
+ * Each function has two comments. The first comment states what the function
+ * does, what it takes, and what it returns when it succeeds. The second
+ * comment, "Errors:", states every failure. When a function fails, it returns
+ * -1 (or NULL) and sets errno, unless its "Errors:" comment says something
+ * else.
  */
 
 #ifndef SENTINEL_SYSCALL_H
@@ -25,12 +27,13 @@
  */
 int sc_open_read(const char *path);
 
-/* Open path for writing. Create the file if it does not exist, with the
- * permission bits 0644. The umask of the process masks them, as it does for
- * open(): with umask 027 the file gets 0640. Do not change the mode after the
- * file opens.
+/* Open path for writing. Returns a file descriptor.
+ * Create the file if it does not exist, with the permission bits 0644. The
+ * umask of the process masks them, as it does for open(): with umask 027 the
+ * file gets 0640. Do not change the mode after the file opens.
  *   append != 0   every write goes to the end of the file, also when other
- *                 processes write the same file at the same time.
+ *                 processes write the same file at the same time. The content
+ *                 that the file holds already stays.
  *   append == 0   the existing content is removed when the file opens.
  */
 /* Errors:
@@ -40,7 +43,7 @@ int sc_open_read(const char *path);
 int sc_open_write(const char *path, int append);
 
 /* The same as sc_open_write, but a new file gets the permission bits in mode,
- * masked by the umask in the same way. */
+ * masked by the umask in the same way. Returns a file descriptor. */
 /* Errors:
  * open() is retried after EINTR. Any other failure gives -1 with the errno
  * of open().
@@ -66,7 +69,8 @@ int sc_close(int fd);
  */
 int sc_write_all(int fd, const void *buf, size_t n);
 
-/* Read from fd into buf until n bytes arrive or the input ends.
+/* Read from fd into buf until n bytes arrive or the input ends. The input
+ * ends when read() returns 0.
  * Returns the number of bytes read: n, or fewer only at the end of the input.
  * n == 0 reads nothing and returns 0, whatever fd is.
  */
@@ -99,9 +103,9 @@ int64_t sc_now_ns(void);
 void sc_now_wall(int64_t *sec, int32_t *usec);
 
 /* Write the current date and time into buf as "<seconds>.<microseconds>",
- * with exactly 6 digits after the point: "1755534061.000042".
- * Returns the length of the stamp, not counting the '\0', or -1 if buflen is
- * too small. buflen must hold the stamp and its '\0': SC_STAMP_MAX is enough.
+ * with exactly 6 digits after the point: "1755534061.000042". buflen is the
+ * size of buf, and must hold the stamp and its '\0': SC_STAMP_MAX is enough.
+ * Returns the length of the stamp, not counting the '\0'.
  */
 /* Errors:
  * buf == NULL gives -1 with EINVAL. A buffer that is too small gives -1 with
@@ -112,62 +116,74 @@ int sc_stamp(char *buf, size_t buflen);
 /* ----------------------------------------------------------------- log.c */
 
 /* The mission log. Every action of SENTINEL is timestamped and written to it
- * (requirement R6). */
+ * (requirement R6). The second column of the comment is the exact name that
+ * log_level_name returns and that a log line shows. */
 
 typedef enum {
-    LOG_SYSTEM = 0,   /* start, stop, configuration          */
-    LOG_INFO,         /* a routine report was received       */
-    LOG_PENDING,      /* queued, waiting for a worker        */
-    LOG_PRIORITY,     /* a priority contact was promoted     */
-    LOG_ALERT,        /* a threat assessment was raised      */
-    LOG_TRACK         /* the track picture was updated       */
+    LOG_SYSTEM = 0,   /* "SYSTEM"    start, stop, configuration          */
+    LOG_INFO,         /* "INFO"      a routine report was received       */
+    LOG_PENDING,      /* "PENDING"   queued, waiting for a worker        */
+    LOG_PRIORITY,     /* "PRIORITY"  a priority contact was promoted     */
+    LOG_ALERT,        /* "ALERT"     a threat assessment was raised      */
+    LOG_TRACK         /* "TRACK"     the track picture was updated       */
 } log_level_t;
 
-typedef struct log log_t;   /* opaque: you define struct log in log.c */
+/* The handle of an open log. Callers see only a pointer to it. You define
+ * struct log in log.c. It holds at least the file descriptor of the log, and
+ * you choose its other fields. */
+typedef struct log log_t;
 
-/* Open the mission log at path. New lines always go to the end of the file,
- * and several processes may write the same log at the same time.
+/* Open the mission log at path. Returns a handle for log_writef and
+ * log_close.
+ * Create the file if it does not exist. The lines that the file holds
+ * already stay: log_open never removes content. New lines always go to the
+ * end of the file, and several processes may write the same log at the same
+ * time.
  * Only the owner may read or write the file (mode 0600). This is also true
  * when the file existed before with other permissions.
- * Returns NULL on failure.
  */
 /* Errors:
- * path == NULL gives NULL with EINVAL. Any other failure gives NULL with the
+ * path == NULL gives NULL with EINVAL. When the mode of an existing file
+ * cannot be set to 0600, the log is closed, and the result is NULL with the
+ * errno of fchmod(), such as EPERM. Any other failure gives NULL with the
  * errno of the call that failed.
  */
 log_t *log_open(const char *path);
 
-/* Write one line to the log, with a message formatted like printf:
+/* Write one line to the log, with a message formatted like printf. Returns 0.
  *
  *     <timestamp> <LEVEL> <message>\n
  *     1755534061.482913 INFO     contact ACCF-4587 from NWS
  *
  * The timestamp is the sc_stamp format. The level name is left-aligned in a
  * field of 8 characters, and one space follows the field.
- * A line is at most 512 bytes, including its '\n'. A longer message is cut,
- * and the line still ends with '\n'.
- * A line never mixes with a line from another writer, and no line is lost:
- * the whole line leaves in one write() call, on a log opened with O_APPEND.
- * Returns 0. lg == NULL or an unknown level gives -1 with errno EINVAL.
+ * A line is at most 512 bytes, including its '\n'. A longer message is cut at
+ * its end, and the line still ends with '\n'.
+ * A line never mixes with a line from another writer, and no line is lost.
+ * To make this true, format the whole line into one buffer first, then write
+ * the buffer with sc_write_all on the log, which log_open opened with
+ * O_APPEND. On a regular file, Linux writes a buffer this short in one
+ * write() call, so no other line can come between two parts of it.
  */
 /* Errors:
  * lg == NULL, fmt == NULL or an unknown level gives -1 with EINVAL, and
- * writes nothing. A failed write gives -1 with the errno of write(). Each
- * '\n' inside the message becomes a space, so one call always writes one
- * line.
+ * writes nothing. A format that vsnprintf() cannot convert gives -1 with
+ * EOVERFLOW, and writes nothing. A failed write gives -1 with the errno of
+ * write(). Each '\n' inside the message becomes a space, so one call always
+ * writes one line.
  */
 int log_writef(log_t *lg, log_level_t level, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
-/* Close the log and free the handle. lg == NULL is allowed and returns 0. */
+/* Close the log and free the handle. Returns 0. */
 /* Errors:
  * lg == NULL returns 0. A failed close gives -1 with the errno of close().
  * The handle is freed in both cases, so do not use it again.
  */
 int log_close(log_t *lg);
 
-/* The name of a level, for example "ALERT", or NULL if level is not a
- * log_level_t value. */
+/* The name of a level, as the comment of log_level_t gives it: "SYSTEM",
+ * "INFO", "PENDING", "PRIORITY", "ALERT" or "TRACK". */
 /* Errors:
  * A value that is not a log_level_t gives NULL. errno does not change.
  */
@@ -175,7 +191,31 @@ const char *log_level_name(log_level_t level);
 
 /* ---------------------------------------------------------------- proc.c */
 
-/* What the kernel knows about a running process, read from /proc. */
+/* What the kernel knows about a running process, read from /proc.
+ *
+ * The directory /proc/<pid> describes the process with that pid. For the
+ * calling process, use /proc/self. Most fields come from the text file
+ * /proc/<pid>/status, which has one field on each line:
+ *
+ *     <Key>:<spaces or tabs><value>
+ *     VmRSS:	    6736 kB
+ *
+ * A memory value ends with " kB". Find a field by its whole key, up to and
+ * including the ':'. A search for "voluntary_ctxt_switches" at any point in
+ * a line also finds "nonvoluntary_ctxt_switches", and gives the wrong number.
+ *
+ *   field        where the value comes from
+ *   pid          the pid argument, or getpid() when the argument is 0
+ *   ppid         status, key "PPid"
+ *   name         status, key "Name"
+ *   vm_rss_kb    status, key "VmRSS", the number without " kB"
+ *   vm_size_kb   status, key "VmSize", the number without " kB"
+ *   threads      status, key "Threads"
+ *   open_fds     the number of entries in the directory /proc/<pid>/fd,
+ *                not counting "." and ".."
+ *   vol_ctxt     status, key "voluntary_ctxt_switches"
+ *   invol_ctxt   status, key "nonvoluntary_ctxt_switches"
+ */
 typedef struct {
     pid_t pid;
     pid_t ppid;
@@ -192,17 +232,16 @@ typedef struct {
      * invol_ctxt the operating system TOOK the processor away, because
      *            another task was owed a turn.
      *
-     * Both are in /proc/<pid>/status. A rising involuntary count is the
-     * operating system sharing one processor between several tasks. */
+     * A rising involuntary count is the operating system sharing one
+     * processor between several tasks. */
     long  vol_ctxt;
     long  invol_ctxt;
 } proc_info_t;
 
-/* Fill out for process pid. pid 0 means the calling process.
- * open_fds is the number of descriptors that the process holds. For the
- * calling process (pid 0, or its own pid), it does not count a descriptor
- * that proc_report itself opens to do its work.
- * out == NULL gives -1 with errno EINVAL. A pid with no process gives -1.
+/* Fill out for process pid. pid 0 means the calling process. Returns 0.
+ * The comment of proc_info_t gives the source of each field.
+ * For the calling process (pid 0, or its own pid), open_fds does not count
+ * the descriptor that proc_report itself opens to read /proc/<pid>/fd.
  */
 /* Errors:
  * out == NULL gives EINVAL. A pid with no process gives ENOENT. A process of
@@ -213,7 +252,7 @@ typedef struct {
 int proc_report(pid_t pid, proc_info_t *out);
 
 /* Write info to fd as text, in exactly this layout (%d, %s and %ld as in
- * printf):
+ * printf). Returns 0 when the whole report is written.
  *
  *     process report
  *       pid        %d
@@ -226,11 +265,14 @@ int proc_report(pid_t pid, proc_info_t *out);
  *       ctxt_vol   %ld
  *       ctxt_invol %ld
  *
- * info == NULL gives -1 with errno EINVAL.
+ * Each line after the first has two spaces, then the label (such as "pid")
+ * left-aligned in a field of 10 characters, then one space, then the value.
+ * Every line ends with '\n'. The order of the lines is not the order of the
+ * fields in proc_info_t: vm_size comes before vm_rss.
  */
 /* Errors:
- * info == NULL gives EINVAL. A failed write gives -1 with the errno of
- * write().
+ * info == NULL gives -1 with EINVAL. A failed write gives -1 with the errno
+ * of write().
  */
 int proc_report_write(int fd, const proc_info_t *info);
 

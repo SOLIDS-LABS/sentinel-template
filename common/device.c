@@ -1,11 +1,11 @@
 /* device.c — open a serial device as a stream of bytes. See device.h.
  *
- * Opening is one call. Making the port stop behaving like a terminal is the
- * rest of the file, and it is the part that a plain open() leaves undone.
+ * The open is one call. The rest of the file stops the port from behaving
+ * as a terminal. A plain open() does not do that part.
  *
- * close(), not libsyscall's sc_close: common/ sits UNDER libsyscall and must
- * not depend on it. On Linux a close() that reports EINTR has already
- * released the descriptor, so there is nothing to retry.
+ * Use close(), not sc_close of libsyscall: common/ is UNDER libsyscall and
+ * must not depend on it. On Linux, a close() that reports EINTR has released
+ * the descriptor already, so there is nothing to retry.
  */
 
 #include "device.h"
@@ -22,15 +22,16 @@ int device_open(const char *path, int nonblock)
         return -1;
     }
 
-    /* A DEVICE IS A FILE. open, read and close are the same calls the feed
-       uses, and lr_next_line, beside this file, cannot tell the difference. What differs is
-       behaviour, not interface: a device may block when a regular file would
-       not, it has no size, and it cannot be seeked.
+    /* A DEVICE IS A FILE. open, read and close are the same calls that the
+       feed uses, and lr_next_line, next to this file, cannot see a
+       difference. The behaviour is different, not the interface: a device
+       can block where a regular file does not, it has no size, and lseek
+       does not work on it.
 
-       O_NOCTTY is the flag nobody expects. Opening a terminal device without
-       it can make that terminal this process's CONTROLLING terminal, and
-       then a Ctrl-C typed at it signals SENTINEL. A sensor must not be able
-       to do that to the centre it reports to. */
+       O_NOCTTY is easy to forget. Without it, the open of a
+       terminal device can make that terminal the CONTROLLING terminal of
+       this process. Then a Ctrl-C typed at it sends a signal to SENTINEL. A
+       sensor must not be able to do that to the centre. */
     int flags = O_RDONLY | O_NOCTTY | (nonblock ? O_NONBLOCK : 0);
     int fd;
     do {
@@ -40,11 +41,11 @@ int device_open(const char *path, int nonblock)
         return -1;
     }
 
-    /* A serial port arrives in "cooked" mode: the line discipline echoes what
-       it reads, translates carriage returns into newlines, and waits for a
-       line before returning anything. All three corrupt a byte stream. A
-       device that is not a terminal has no line discipline, so there is
-       nothing to configure and isatty says so. */
+    /* A serial port starts in "cooked" mode: the line discipline echoes what
+       it reads, changes carriage returns into newlines, and waits for a
+       whole line before it returns anything. All three damage a byte
+       stream. A device that is not a terminal has no line discipline, so
+       there is nothing to set, and isatty shows this. */
     if (isatty(fd)) {
         struct termios tio;
         if (tcgetattr(fd, &tio) != 0) {
@@ -57,9 +58,9 @@ int device_open(const char *path, int nonblock)
         cfsetispeed(&tio, B115200);
         cfsetospeed(&tio, B115200);
 
-        /* Return as soon as any byte is available. The default makes read()
-           wait for a full buffer, which turns a steady feed into nothing
-           followed by a burst. */
+        /* Return when one byte is available. With the default, read()
+           waits for a full buffer. A steady feed then gives nothing for a
+           time, and then a burst. */
         tio.c_cc[VMIN]  = 0;
         tio.c_cc[VTIME] = 1;            /* tenths of a second */
 

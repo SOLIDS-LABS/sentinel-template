@@ -1,12 +1,13 @@
-/* cpu.c — the processor, as an instrument. See cpu.h for why this is given.
+/* cpu.c — the processor, as an instrument. cpu.h tells why this is given.
  *
  * The operating system keeps an affinity mask for every task: the set of
- * processors it is allowed to be scheduled on. sched_setaffinity replaces it,
- * sched_getaffinity reads it back.
+ * processors on which the task can run. sched_setaffinity replaces the mask,
+ * and sched_getaffinity reads it.
  *
- * The two clocks that are NOT here are in libsyscall, because a lab asks for
- * them: CLOCK_REALTIME for a timestamp and CLOCK_MONOTONIC for a duration.
- * Only the third one, the per-thread processor clock, is a measurement.
+ * Two clocks are NOT here. They are in libsyscall, because a lab asks for
+ * them: CLOCK_REALTIME for a timestamp, and CLOCK_MONOTONIC for a duration.
+ * Only the third clock, the processor clock of each thread, is a
+ * measurement.
  */
 
 #include "cpu.h"
@@ -19,12 +20,12 @@
 #include <time.h>
 #include <unistd.h>
 
-/* The mask this program started with, saved by the first cpu_pin so that
-   cpu_unpin can restore it exactly.
+/* The mask with which this program started. The first cpu_pin saves it, so
+   that cpu_unpin can put it back exactly.
 
-   Restoring "every online processor" instead would be wrong: a run started
-   under `taskset -c 2,3` would be given processors 0 and 1 that its operator
-   deliberately withheld. A forked sensor would then escape onto them. */
+   To put back "every online processor" is not correct. A run that started
+   under `taskset -c 2,3` then gets processors 0 and 1, which its operator
+   did not give it. A sensor from fork then runs on them too. */
 static cpu_set_t g_original;
 static int       g_saved = 0;
 
@@ -70,11 +71,12 @@ int cpu_pin(int n_cpus)
         n_cpus = online;
     }
 
-    /* Choose from the processors the program is ALLOWED to use, lowest first,
-       rather than from 0..n_cpus-1. Under `taskset -c 4,5` the low-numbered
-       processors are not ours, and a mask naming them would be rejected with
-       EINVAL. Walking the saved mask makes "one core" mean "the first core we
-       were given", which is true in both cases. */
+    /* Choose from the processors that the program CAN use, lowest first,
+       and not from 0..n_cpus-1. Under `taskset -c 4,5`, the low-numbered
+       processors are not available, and the kernel refuses a mask that
+       names them with EINVAL. This loop reads the saved mask, so "one core"
+       means "the first core that the program got". That is true in both
+       cases. */
     cpu_set_t want;
     CPU_ZERO(&want);
     int chosen = 0;
@@ -98,9 +100,8 @@ int cpu_unpin(void)
         return sched_setaffinity(0, sizeof g_original, &g_original);
     }
 
-    /* Never pinned, so there is nothing saved to put back. Offer every online
-       processor. The loop stops at CPU_SETSIZE, not at the online count, so a
-       machine that numbers its processors with gaps is still covered. */
+    /* The program was never pinned, so no mask is saved. Give every online
+       processor. */
     int online = cpu_count_online();
     if (online < 1) {
         return -1;
@@ -113,10 +114,10 @@ int cpu_unpin(void)
     return sched_setaffinity(0, sizeof all, &all);
 }
 
-/* The same arithmetic as sc_now_ns, on a different clock. The clock id is
-   what makes it a different measurement: CLOCK_THREAD_CPUTIME_ID stops while
-   the thread is off the processor, so two readings either side of a sleep
-   differ by almost nothing however long the sleep was. */
+/* The same arithmetic as sc_now_ns, on a different clock. The clock id
+   makes it a different measurement: CLOCK_THREAD_CPUTIME_ID stops while the
+   thread is off the processor. So two readings before and after a sleep are
+   almost the same, however long the sleep was. */
 int64_t cpu_thread_ns(void)
 {
     struct timespec ts;
@@ -126,8 +127,8 @@ int64_t cpu_thread_ns(void)
     return (int64_t)ts.tv_sec * 1000000000 + (int64_t)ts.tv_nsec;
 }
 
-/* Return the value after "key:" in one line of /proc status text, or NULL if
-   the line is about something else. */
+/* Return the value after "key:" in one line of /proc status text. Return
+   NULL if the line has a different key. */
 static const char *field(const char *line, const char *key)
 {
     size_t klen = strlen(key);
@@ -154,15 +155,15 @@ int cpu_thread_ctxt(pid_t tid, long *vol, long *invol)
         *invol = 0;
     }
 
-    /* "self" again, so the caller does not need its own pid. A thread id is
-       only meaningful inside its own process, so there is no other process
-       this could sensibly mean. */
+    /* "self" again, so the caller does not need its own pid. A thread id has
+       a meaning only in its own process, so no other process is possible
+       here. */
     char path[128];
     snprintf(path, sizeof path, "/proc/self/task/%d/status", (int)tid);
 
     FILE *f = fopen(path, "r");
     if (f == NULL) {
-        return -1;                     /* ESRCH once the thread has exited */
+        return -1;                     /* ESRCH when the thread has stopped */
     }
 
     char line[512];

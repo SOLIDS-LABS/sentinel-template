@@ -2,30 +2,32 @@
  *
  * This is GIVEN code. No lab asks you to write it.
  *
- * Everything here answers one question: what is the processor doing to this
- * program? Which processors may it use, how much processor time has this
- * thread actually spent, and how often was it taken off.
+ * Each function here answers one question: what does the processor do to
+ * this program? Which processors can the program use? How much processor
+ * time did this thread really use? How often was the processor taken away
+ * from it?
  *
- * None of the six requirements needs any of it. SENTINEL would meet R1 to R6
- * with this file deleted. The COURSE needs it, to create the one-processor
- * condition the labs are measured under and to report what a run cost. That
- * is what makes it an instrument rather than a lab deliverable, and why it
- * lives here beside the contact record and not in a library a student writes.
+ * None of the six requirements needs this file. SENTINEL meets R1 to R6
+ * without it. The COURSE needs it, for two tasks: to make the one-processor
+ * condition in which the labs are measured, and to report the cost of a run.
+ * So it is an instrument and not a lab deliverable. That is why it is here,
+ * next to the contact record, and not in a library that a student writes.
  *
- * Three properties of the affinity mask matter, and none is obvious:
+ * Three properties of the affinity mask are important, and none is obvious:
  *
- *   1. The mask survives fork(). A child starts with its parent's mask, and
- *      nothing tells you. The centre pins itself before it spawns sensors, so
- *      every sensor would be trapped on the centre's core unless the child
- *      clears it. That is why the centre calls cpu_unpin() in each child it
- *      starts, after the fork and before the exec.
+ *   1. The mask stays after fork(). A child starts with the mask of its
+ *      parent, and nothing tells you. The centre pins itself before it
+ *      starts the sensors. If the child does not clear the mask, every
+ *      sensor can use only the core of the centre. That is why the centre
+ *      calls cpu_unpin() in each child that it starts, after the fork and
+ *      before the exec.
  *
- *   2. The mask survives exec(). Replacing the program image does not reset
- *      it, so even contactfeed, which knows nothing about any of this, would
- *      inherit the restriction.
+ *   2. The mask stays after exec(). A new program image does not reset it.
+ *      So contactfeed, which knows nothing about the mask, also gets the
+ *      limit.
  *
- *   3. Threads inherit it from the thread that created them. Pinning the main
- *      thread before any thread is created is enough to pin all of them.
+ *   3. A thread gets the mask from the thread that created it. If the main
+ *      thread is pinned before it creates a thread, all threads are pinned.
  */
 
 #ifndef SENTINEL_CPU_H
@@ -34,45 +36,51 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-/* How many processors the machine has online. Returns -1 on failure. */
+/* The number of processors that are online on the machine. Returns -1 on
+ * failure. */
 int cpu_count_online(void);
 
-/* How many processors this program may CURRENTLY use. Returns -1 on failure.
+/* The number of processors that this program can use NOW. Returns -1 on
+ * failure.
  *
- * Read this back rather than trusting the value you asked for. Asking for a
- * processor is not the same as being given it: a container, a cpuset or an
- * administrator can allow fewer, and the call still succeeds with a narrower
- * mask. The centre reports what it read, never what it requested. */
+ * Read this value. Do not trust the value that you asked for. A request for
+ * a processor does not always give that processor: a container, a cpuset or
+ * an administrator can allow fewer, and the call still succeeds with a
+ * smaller mask. The centre reports the value that it read, never the value
+ * that it asked for. */
 int cpu_allowed(void);
 
-/* Restrict this program to n_cpus processors, chosen from those it is already
- * allowed to use, lowest first. n_cpus above the online count is clamped;
- * n_cpus below 1 gives -1 and EINVAL. The first call saves the mask the
- * program started with, so cpu_unpin can put it back exactly. */
+/* Limit this program to n_cpus processors. They are the lowest-numbered
+ * processors from those that the program can use already. If n_cpus is
+ * more than the online count, the online count is used. n_cpus below 1
+ * gives -1 and EINVAL. The first call saves the mask with which the program
+ * started, so cpu_unpin can put it back exactly. */
 int cpu_pin(int n_cpus);
 
-/* Put back the mask this program started with. When cpu_pin was never called
- * there is nothing saved, so this offers every online processor instead. */
+/* Put back the mask with which this program started. If cpu_pin was never
+ * called, nothing is saved, so this gives every online processor. */
 int cpu_unpin(void);
 
-/* Nanoseconds of PROCESSOR time this thread has used, or -1 on failure.
+/* Nanoseconds of PROCESSOR time that this thread has used, or -1 on failure.
  *
- * This is not elapsed time, and the difference is the whole point.
- * CLOCK_THREAD_CPUTIME_ID stops while the thread is off the processor, so two
- * readings either side of a sleep differ by almost nothing however long the
- * sleep was. On one processor the CPU time of every thread added together can
- * never exceed the elapsed time, which is what makes concurrency measurable
- * and tells a thread that waits for work from a thread that waits for a
- * processor. Use sc_now_ns for a duration. */
+ * This is not elapsed time, and that difference is the purpose of the
+ * function. CLOCK_THREAD_CPUTIME_ID stops while the thread is off the
+ * processor. So two readings before and after a sleep are almost the same,
+ * however long the sleep was. On one processor, the CPU time of all threads
+ * added together cannot be more than the elapsed time. This makes
+ * concurrency measurable. It also shows the difference between a thread
+ * that waits for work and a thread that waits for a processor. Use
+ * sc_now_ns for a duration. */
 int64_t cpu_thread_ns(void);
 
 /* The two context switch counters of one thread of THIS process, from
- * /proc/self/task/<tid>/status. Returns 0, or -1 with errno set; ESRCH once
- * the thread has exited.
+ * /proc/self/task/<tid>/status. Returns 0, or -1 with errno set. ESRCH
+ * means that the thread has stopped.
  *
- * A voluntary switch is the thread giving the processor up, normally because
- * it blocked. An involuntary one is the operating system taking the processor
- * away. The second number is the one that shows contention. */
+ * In a voluntary switch, the thread gives the processor up, usually because
+ * it must wait. In an involuntary switch, the operating system takes the
+ * processor away. The second number shows that threads compete for the
+ * processor. */
 int cpu_thread_ctxt(pid_t tid, long *vol, long *invol);
 
 #endif /* SENTINEL_CPU_H */
